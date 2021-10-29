@@ -36,7 +36,7 @@ def ct(api_host):
 
     # HTTP API Request
     try:
-        r = requests.get(url, timeout=30)
+        r = requests.get(url, timeout=10)
     # Uh oh, something went wrong
     except Exception as e:
         logging.error("Unable to GET from '%s'" % url)
@@ -66,7 +66,7 @@ def inverters(api_host, api_user, api_pass):
 
     # HTTP API Request, long timeout since it appears Envoy system throttles data requists
     try:
-        r = requests.get(url, auth=HTTPDigestAuth(api_user, api_pass), timeout=30)
+        r = requests.get(url, auth=HTTPDigestAuth(api_user, api_pass), timeout=10)
 
     # Uh oh, something went wrong
     except Exception as e:
@@ -212,6 +212,7 @@ def main():
     # Some basic logging
     logging.info("Enphase Metrics Collector Started...")
     logging.debug(config)
+    time.sleep(10)
 
     # Basic non-looped setup
     setup_influx(config)
