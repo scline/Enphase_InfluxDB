@@ -7,19 +7,21 @@ services:
     build: 
       context: .
       dockerfile: ./Dockerfile
+    restart: unless-stopped
     container_name: enphase-app
     environment:
       - ENPHASE_HOST=10.1.4.69
       - ENPHASE_PASS=password
       - INFLUXDB_HOST=influxdb
       - INFLUXDB_PORT=8086
-      - DEBUG=1
+#      - DEBUG=1
       - TZ=America/Los_Angeles
     depends_on:
       - "influxdb"
 
   influxdb:
     image: influxdb:1.8
+    restart: unless-stopped
     container_name: enphase-influxdb
     ports:
       - '8086:8086'

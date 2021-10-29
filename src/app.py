@@ -115,13 +115,14 @@ def inverters(api_host, api_user, api_pass):
 def inverter_log_point(measurement=None, reportdate=None, serial=None, devtype=None, value=None):
     return {
         "measurement": measurement,
-        "time": datetime.datetime.fromtimestamp(reportdate).strftime ("%Y-%m-%d %H:%M:%S"),
+        # TODO: Timezone needs to be UTC regardless of server settings
+        #"time": datetime.datetime.fromtimestamp(reportdate).utcnow().strftime ("%Y-%m-%d %H:%M:%S"),
         "tags": {
             "serialNumber": serial,
             "devType": devtype
         },
         "fields": {
-            "value": value
+            "panel_metric": value
         }
     }
 
@@ -130,13 +131,14 @@ def inverter_log_point(measurement=None, reportdate=None, serial=None, devtype=N
 def eim_log_point(measurement=None, reading_time=None, measurement_type=None, value=None):
     return {
         "measurement": measurement,
-        "time": datetime.datetime.fromtimestamp(reading_time).strftime ("%Y-%m-%d %H:%M:%S"),
+        # TODO: Timezone needs to be UTC regardless of server settings
+        #"time": datetime.datetime.fromtimestamp(reading_time).strftime ("%Y-%m-%d %H:%M:%S"),
         "tags": {
             "type": "eim",
             "measurementType": measurement_type
         },
         "fields": {
-            "raw": float(value)
+            "ct_metric": float(value)
         }
     }
 
@@ -228,7 +230,7 @@ def main():
                         points.append(eim_log_point("varhLagToday", v['readingTime'], v['measurementType'], v['varhLagToday']))  
 
                         # Log that metrics were collected
-                        logging.info("Collected metrics from EIM: '%s'" % v)
+                        logging.info("Collected metrics from EIM: '%s'" % v['measurementType'])
 
         # If None then something went wrong during data collection. Log error and move on.
         else:
