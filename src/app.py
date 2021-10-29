@@ -134,9 +134,9 @@ def ct_inverter_log_point(metric):
             "type": metric['type']
         },
         "fields": {
-            "activeCount": metric['activeCount'],
-            "wNow": metric['wNow'],
-            "whLifetime": metric['whLifetime']
+            "activeCount": float(metric['activeCount']),
+            "wNow": float(metric['wNow']),
+            "whLifetime": float(metric['whLifetime'])
         }
     }
 
@@ -150,7 +150,7 @@ def eim_log_point(metric):
             "measurementType": metric['measurementType']
         },
         "fields": {
-            "activeCount": metric['activeCount'],
+            "activeCount": float(metric['activeCount']),
             "wNow": float(metric['wNow']),
             "whLifetime": float(metric['whLifetime']),
             "varhLeadLifetime": float(metric['varhLeadLifetime']),
