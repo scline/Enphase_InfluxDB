@@ -1,0 +1,28 @@
+# docker compose used for testing the application
+
+version: "3.5"
+
+services:
+  app:
+    build: 
+      context: .
+      dockerfile: ./Dockerfile
+    container_name: enphase-app
+    environment:
+      - ENPHASE_HOST=10.1.4.69
+      - ENPHASE_PASS=password
+      - INFLUXDB_HOST=influxdb
+      - INFLUXDB_PORT=8086
+      - DEBUG=1
+      - TZ=America/Los_Angeles
+    depends_on:
+      - "influxdb"
+
+  influxdb:
+    image: influxdb:1.8
+    container_name: enphase-influxdb
+    ports:
+      - '8086:8086'
+    environment:
+      - INFLUXDB_DB=enphase
+     
