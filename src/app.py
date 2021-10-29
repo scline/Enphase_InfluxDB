@@ -112,33 +112,59 @@ def inverters(api_host, api_user, api_pass):
 
 
 # Data structure for InfluxDB, used for 'lastReportWatts' and 'maxReportWatts'
-def inverter_log_point(measurement=None, reportdate=None, serial=None, devtype=None, value=None):
+def inverter_log_point(metric):
     return {
-        "measurement": measurement,
-        # TODO: Timezone needs to be UTC regardless of server settings
-        #"time": datetime.datetime.fromtimestamp(reportdate).utcnow().strftime ("%Y-%m-%d %H:%M:%S"),
+        "measurement": "inverter",
         "tags": {
-            "serialNumber": serial,
-            "devType": devtype
+            "serialNumber": metric['serialNumber'],
+            "devType": metric['devType']
         },
         "fields": {
-            "panel_metric": value
+            "lastReportWatts": metric['lastReportWatts'],
+            "maxReportWatts": metric['maxReportWatts']
+        }
+    }
+
+
+# Data structure for InfluxDB, used for 'inverters' type CT data
+def ct_inverter_log_point(metric):
+    return {
+        "measurement": "ct",
+        "tags": {
+            "type": metric['type']
+        },
+        "fields": {
+            "activeCount": metric['activeCount'],
+            "wNow": metric['wNow'],
+            "whLifetime": metric['whLifetime']
         }
     }
 
 
 # Data structure for InfluxDB, used for 'EIM' type CT data
-def eim_log_point(measurement=None, reading_time=None, measurement_type=None, value=None):
+def eim_log_point(metric):
     return {
-        "measurement": measurement,
-        # TODO: Timezone needs to be UTC regardless of server settings
-        #"time": datetime.datetime.fromtimestamp(reading_time).strftime ("%Y-%m-%d %H:%M:%S"),
+        "measurement": "ct",
         "tags": {
-            "type": "eim",
-            "measurementType": measurement_type
+            "type": metric['type'],
+            "measurementType": metric['measurementType']
         },
         "fields": {
-            "ct_metric": float(value)
+            "activeCount": metric['activeCount'],
+            "wNow": float(metric['wNow']),
+            "whLifetime": float(metric['whLifetime']),
+            "varhLeadLifetime": float(metric['varhLeadLifetime']),
+            "varhLagLifetime": float(metric['varhLagLifetime']),
+            "vahLifetime": float(metric['vahLifetime']),
+            "rmsCurrent": float(metric['rmsCurrent']),
+            "rmsVoltage": float(metric['rmsVoltage']),
+            "reactPwr": float(metric['reactPwr']),
+            "apprntPwr": float(metric['apprntPwr']),
+            "whToday": float(metric['whToday']),
+            "whLastSevenDays": float(metric['whLastSevenDays']),
+            "vahToday": float(metric['vahToday']),
+            "varhLeadToday": float(metric['varhLeadToday']),
+            "varhLagToday": float(metric['varhLagToday'])
         }
     }
 
@@ -168,16 +194,34 @@ def write_influx(config, points):
     return True
 
 
+def setup_influx(config):
+    # Setup InfluxDB client
+    client = InfluxDBClient(host=config.influxdb_host, port=config.influxdb_port, database=config.influxdb_name, verify_ssl=False)
+
+    # Create database if it does not exsist
+    try:
+        client.create_database(config.influxdb_name)
+    except Exception as e:
+        logging.error("Error creating InfluxDB Database, please verify one exsists")
+        logging.error(e)
+
+    return
+
+
 def main():
     # Some basic logging
     logging.info("Enphase Metrics Collector Started...")
     logging.debug(config)
+
+    # Basic non-looped setup
+    setup_influx(config)
 
     # Main gathering loop
     while True:
         # Cleanup variables for new run
         points = []
         inverter_output = None
+        metric = None
 
         logging.debug("Sleeping for 30 seconds")
         time.sleep(30)
@@ -187,9 +231,8 @@ def main():
 
         # If we have a value, process data for influxDB, 'lastReportWatts' and 'maxReportWatts' metrics
         if inverter_output is not None:
-            for panel in inverter_output:
-                points.append(inverter_log_point("lastReportWatts", panel['lastReportDate'], panel['serialNumber'], panel['devType'], panel['lastReportWatts']))
-                points.append(inverter_log_point("maxReportWatts", panel['lastReportDate'], panel['serialNumber'], panel['devType'], panel['maxReportWatts']))
+            for metric in inverter_output:
+                points.append(inverter_log_point(metric))
 
             # Log the number of panels we got information on
             logging.info("Collected stats from %i solar panels" % len(inverter_output))
@@ -207,30 +250,16 @@ def main():
         # If we have a value, process data for influxDB
         if ct_output is not None:
             for k in ct_output:
-                #logging.debug(k)
-                for v in ct_output[k]:
-                    #logging.debug(v)
+                for metric in ct_output[k]:
                     # Format metrics to 'eim' type
-                    if v['type'] == "eim":
-                        points.append(eim_log_point("activeCount", v['readingTime'], v['measurementType'], v['activeCount']))
-                        points.append(eim_log_point("wNow", v['readingTime'], v['measurementType'], v['wNow']))
-                        points.append(eim_log_point("whLifetime", v['readingTime'], v['measurementType'], v['whLifetime']))
-                        points.append(eim_log_point("varhLeadLifetime", v['readingTime'], v['measurementType'], v['varhLeadLifetime']))
-                        points.append(eim_log_point("varhLagLifetime", v['readingTime'], v['measurementType'], v['varhLagLifetime']))
-                        points.append(eim_log_point("vahLifetime", v['readingTime'], v['measurementType'], v['vahLifetime']))
-                        points.append(eim_log_point("rmsCurrent", v['readingTime'], v['measurementType'], v['rmsCurrent']))
-                        points.append(eim_log_point("rmsVoltage", v['readingTime'], v['measurementType'], v['rmsVoltage']))
-                        points.append(eim_log_point("reactPwr", v['readingTime'], v['measurementType'], v['reactPwr']))
-                        points.append(eim_log_point("apprntPwr", v['readingTime'], v['measurementType'], v['apprntPwr']))
-                        points.append(eim_log_point("pwrFactor", v['readingTime'], v['measurementType'], v['pwrFactor']))
-                        points.append(eim_log_point("whToday", v['readingTime'], v['measurementType'], v['whToday']))
-                        points.append(eim_log_point("whLastSevenDays", v['readingTime'], v['measurementType'], v['whLastSevenDays']))
-                        points.append(eim_log_point("vahToday", v['readingTime'], v['measurementType'], v['vahToday']))
-                        points.append(eim_log_point("varhLeadToday", v['readingTime'], v['measurementType'], v['varhLeadToday']))
-                        points.append(eim_log_point("varhLagToday", v['readingTime'], v['measurementType'], v['varhLagToday']))  
-
+                    if metric['type'] == "eim":
+                        points.append(eim_log_point(metric))
                         # Log that metrics were collected
-                        logging.info("Collected metrics from EIM: '%s'" % v['measurementType'])
+                        logging.info("Collected metrics from CT-EIM: '%s'" % metric['measurementType'])
+                    if metric['type'] == 'inverters':
+                        points.append(ct_inverter_log_point(metric))
+                        # Log that metrics were collected
+                        logging.info("Collected metrics from CT-Inverters: '%s'" % metric['type'])      
 
         # If None then something went wrong during data collection. Log error and move on.
         else:
@@ -248,4 +277,3 @@ def main():
 # Start Program
 if __name__ == "__main__":
     main()
-
